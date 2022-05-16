@@ -59,13 +59,20 @@ if __name__ == '__main__':
 
     """" 2. DoI permittivity profile """
     size = 0.015
-    permittivity = 3.3
+    permittivity = 3
+    center_x = 0
+    center_y = 0
 
     scatterer = np.ones((m, m), dtype=complex)
 
     # Circle
     scatterer[(grid_positions[0] - -0.005) ** 2 + (grid_positions[1] - 0.045) ** 2 <= size** 2] = permittivity
     scatterer[(grid_positions[0] - -0.012) ** 2 + (grid_positions[1] + 0.045) ** 2 <= size** 2] = permittivity
+
+    # Rectangle
+    # mask = ((grid_positions[0] <= center_x + 0.04) & (grid_positions[0] >= center_x -0.04) &
+    #         (grid_positions[1] <= center_y + 0.015) & (grid_positions[1] >= center_y - 0.015))
+    # scatterer[mask] = permittivity
 
     # Plot
     plt.figure(1)
