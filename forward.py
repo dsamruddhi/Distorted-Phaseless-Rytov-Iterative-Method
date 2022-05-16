@@ -4,60 +4,11 @@ from scipy.special import jv as bessel1
 from scipy.special import hankel1
 from scipy.io import savemat
 
+from config import *
+
 if __name__ == '__main__':
 
-    """" 1. Config parameters """
-
-    # """ System parameters """
-    frequency = 2e9
-    wavelength = 3e8 / frequency
-    wave_number = 2 * np.pi / wavelength
-    impedance = 120 * np.pi
-
-    # """ DoI parameters """
-    doi_length = wavelength
-    m = 120
-    grid_length = doi_length / m
-    num_grids = m ** 2
-
-    # Grid positions/ centroids
-    centroids_x = np.arange(start=- doi_length / 2 + grid_length / 2, stop=doi_length / 2, step=grid_length)
-    centroids_y = np.arange(start=doi_length / 2 - grid_length / 2, stop=-doi_length / 2, step=-grid_length)
-    grid_positions = np.meshgrid(centroids_x, centroids_y)
-    # Grid radius
-    grid_radius = np.sqrt(grid_length ** 2 / np.pi)
-
-    # """ Sensor parameters """
-    geometry = "circle"
-    rx_count = 40
-    tx_count = 40
-
-    # Sensor positions
-    x = 5 * wavelength
-    y = x
-    angles = np.arange(start=0, stop=360, step=360/rx_count)
-    theta = [np.deg2rad(angle) for angle in angles]
-    sensor_x = x*np.cos(theta)
-    sensor_y = y*np.sin(theta)
-    sensor_positions = np.transpose(np.array([sensor_x, sensor_y]))
-
-    # Sensor links
-    sensor_links = []
-    for i in range(rx_count):
-        for j in range(rx_count):
-            if i != j:
-                sensor_links.append((i, j))
-
-    # """ Other parameters """
-    nan_remove = True
-    noise_level = 0
-
-    # """ Constants to be used in code """
-    C1 = -impedance * np.pi * (grid_radius / 2)
-    C2 = bessel1(1, wave_number * grid_radius)
-    C3 = hankel1(1, wave_number * grid_radius)
-
-    """" 2. DoI permittivity profile """
+    """" 1. DoI permittivity profile """
     size = 0.015
     permittivity = 3
     center_x = 0
@@ -80,7 +31,7 @@ if __name__ == '__main__':
     plt.colorbar()
     plt.show()
 
-    """" 3. Direct field from transmitter to receiver in free space """
+    """" 2. Direct field from transmitter to receiver in free space """
 
     tx_xcoord = [pos[0] for pos in sensor_positions]
     tx_ycoord = [pos[1] for pos in sensor_positions]
@@ -93,7 +44,7 @@ if __name__ == '__main__':
     dist = np.sqrt((xtd - xrd) ** 2 + (ytd - yrd) ** 2)
     direct_field = (1j / 4) * hankel1(0, wave_number * dist)
 
-    """" 4. Incident field from transmitter on all DoI grids """
+    """" 3. Incident field from transmitter on all DoI grids """
 
     grid_xcoord = grid_positions[0]
     grid_xcoord = grid_xcoord.reshape(grid_xcoord.size, order='F')
@@ -107,13 +58,13 @@ if __name__ == '__main__':
     dist = np.sqrt((xti - xsi) ** 2 + (yti - ysi) ** 2)
     incident_field = (1j / 4) * hankel1(0, wave_number * dist)
 
-    """" 5. Grids containing object """
+    """" 4. Grids containing object """
 
     unrolled_scatterer = scatterer.reshape(scatterer.size, order='F')
     object_grids = np.nonzero(unrolled_scatterer != 1)
     object_grids = object_grids[0]
 
-    """" 6. Green's function / equivalent """
+    """" 5. Green's function / equivalent """
 
     Z = np.zeros((len(object_grids), len(object_grids)), dtype=np.complex64)
     unroll_x = grid_positions[0].reshape(grid_positions[0].size, order='F')
@@ -136,7 +87,7 @@ if __name__ == '__main__':
         assert len(z1) == len(dipole_distances)
         Z[index, :] = z1
 
-    """" 7. Induced current on every point in the DoI """
+    """" 6. Induced current on every point in the DoI """
 
     field_on_object = -incident_field[object_grids]
     J1 = np.linalg.inv(Z) @ field_on_object
@@ -145,7 +96,7 @@ if __name__ == '__main__':
     for i in range(len(object_grids)):
         induced_current[object_grids[i], :] = J1[i, :]
 
-    """" 8. Scattered field collected at the receivers """
+    """" 7. Scattered field collected at the receivers """
 
     [xts, xss] = np.meshgrid(tx_xcoord, grid_xcoord)
     [yts, yss] = np.meshgrid(tx_ycoord, grid_ycoord)
@@ -154,7 +105,7 @@ if __name__ == '__main__':
     ZZ = - impedance * np.pi * (grid_radius/2) * bessel1(1, wave_number * grid_radius) * hankel1(0, wave_number * np.transpose(dist))
     scattered_field = ZZ @ induced_current
 
-    """" 9. Total field at receivers """
+    """" 8. Total field at receivers """
 
     def remove_nan(field):
         np.fill_diagonal(field, np.nan)
@@ -168,7 +119,7 @@ if __name__ == '__main__':
     direct_field = remove_nan(direct_field)
     total_field = remove_nan(total_field)
 
-    """" 10. RSS values at receivers """
+    """" 9. RSS values at receivers """
 
     def get_power(field):
         power = ((np.abs(field) + noise_level) ** 2) * (wavelength ** 2) / (4 * np.pi * impedance)
@@ -178,7 +129,7 @@ if __name__ == '__main__':
     direct_power = get_power(direct_field)
     total_power = get_power(total_field)
 
-    """" 11. Save data """
+    """" 10. Save data """
 
     savemat('data/scatterer.mat', {"scatterer": scatterer})
     savemat('data/direct_field.mat', {"direct_field": direct_field})
