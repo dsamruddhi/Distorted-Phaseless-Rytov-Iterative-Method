@@ -1,1 +1,1 @@
-# DRIM-Adaptive-Regularization
+# Distorted Phaseless Rytov Iterative Method
