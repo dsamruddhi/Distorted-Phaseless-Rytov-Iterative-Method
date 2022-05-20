@@ -1,6 +1,4 @@
 import numpy as np
-from scipy.special import jv as bessel1
-from scipy.special import hankel1
 
 """ System parameters """
 frequency = 2e9
@@ -10,16 +8,6 @@ impedance = 120 * np.pi
 
 """ DoI parameters """
 doi_length = wavelength
-m = 120
-grid_length = doi_length / m
-num_grids = m ** 2
-
-""" Grid positions/ centroids """
-centroids_x = np.arange(start=- doi_length / 2 + grid_length / 2, stop=doi_length / 2, step=grid_length)
-centroids_y = np.arange(start=doi_length / 2 - grid_length / 2, stop=-doi_length / 2, step=-grid_length)
-grid_positions = np.meshgrid(centroids_x, centroids_y)
-# Grid radius
-grid_radius = np.sqrt(grid_length ** 2 / np.pi)
 
 """ Sensor parameters """
 geometry = "circle"
@@ -45,8 +33,3 @@ for i in range(rx_count):
 """ Other parameters """
 nan_remove = True
 noise_level = 0
-
-""" Other constants to be used in code """
-C1 = -impedance * np.pi * (grid_radius / 2)
-C2 = bessel1(1, wave_number * grid_radius)
-C3 = hankel1(1, wave_number * grid_radius)

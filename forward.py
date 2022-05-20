@@ -1,29 +1,48 @@
+from config import *
+
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.special import jv as bessel1
 from scipy.special import hankel1
 from scipy.io import savemat
 
-from config import *
-
 if __name__ == '__main__':
+
+    """" Forward problem config parameters """
+
+    m = 120
+    grid_length = doi_length / m
+    num_grids = m ** 2
+
+    # """ Grid positions/ centroids """
+    centroids_x = np.arange(start=- doi_length / 2 + grid_length / 2, stop=doi_length / 2, step=grid_length)
+    centroids_y = np.arange(start=doi_length / 2 - grid_length / 2, stop=-doi_length / 2, step=-grid_length)
+    grid_positions = np.meshgrid(centroids_x, centroids_y)
+
+    # """ Grid radius """
+    grid_radius = np.sqrt(grid_length ** 2 / np.pi)
+
+    # """ Constants to be used in code """
+    C1 = -impedance * np.pi * (grid_radius / 2)
+    C2 = bessel1(1, wave_number * grid_radius)
+    C3 = hankel1(1, wave_number * grid_radius)
 
     """" 1. DoI permittivity profile """
     size = 0.015
-    permittivity = 3
+    permittivity = 3.3 + 0.3j
     center_x = 0
     center_y = 0
 
     scatterer = np.ones((m, m), dtype=complex)
 
     # Circle
-    scatterer[(grid_positions[0] - -0.005) ** 2 + (grid_positions[1] - 0.045) ** 2 <= size** 2] = permittivity
-    scatterer[(grid_positions[0] - -0.012) ** 2 + (grid_positions[1] + 0.045) ** 2 <= size** 2] = permittivity
+    # scatterer[(grid_positions[0] - -0.005) ** 2 + (grid_positions[1] - 0.045) ** 2 <= size** 2] = permittivity
+    # scatterer[(grid_positions[0] - -0.012) ** 2 + (grid_positions[1] + 0.045) ** 2 <= size** 2] = permittivity
 
     # Rectangle
-    # mask = ((grid_positions[0] <= center_x + 0.04) & (grid_positions[0] >= center_x -0.04) &
-    #         (grid_positions[1] <= center_y + 0.015) & (grid_positions[1] >= center_y - 0.015))
-    # scatterer[mask] = permittivity
+    mask = ((grid_positions[0] <= center_x + 0.04) & (grid_positions[0] >= center_x -0.04) &
+            (grid_positions[1] <= center_y + 0.015) & (grid_positions[1] >= center_y - 0.015))
+    scatterer[mask] = permittivity
 
     # Plot
     plt.figure(1)
@@ -64,7 +83,7 @@ if __name__ == '__main__':
     object_grids = np.nonzero(unrolled_scatterer != 1)
     object_grids = object_grids[0]
 
-    """" 5. Green's function / equivalent """
+    """" 5. Method of Moment """
 
     Z = np.zeros((len(object_grids), len(object_grids)), dtype=np.complex64)
     unroll_x = grid_positions[0].reshape(grid_positions[0].size, order='F')
@@ -96,14 +115,18 @@ if __name__ == '__main__':
     for i in range(len(object_grids)):
         induced_current[object_grids[i], :] = J1[i, :]
 
-    """" 7. Scattered field collected at the receivers """
+    """" 7. Free space Green's function scaled by a constant """
 
     [xts, xss] = np.meshgrid(tx_xcoord, grid_xcoord)
     [yts, yss] = np.meshgrid(tx_ycoord, grid_ycoord)
 
     dist = np.sqrt((xts - xss)**2 + (yts - yss)**2)
-    ZZ = - impedance * np.pi * (grid_radius/2) * bessel1(1, wave_number * grid_radius) * hankel1(0, wave_number * np.transpose(dist))
-    scattered_field = ZZ @ induced_current
+
+    G_scaled = - impedance * np.pi * (grid_radius / 2) * bessel1(1, wave_number * grid_radius) * hankel1(0, wave_number * np.transpose(dist))
+
+    """" 7. Scattered field collected at the receivers """
+
+    scattered_field = G_scaled @ induced_current
 
     """" 8. Total field at receivers """
 
